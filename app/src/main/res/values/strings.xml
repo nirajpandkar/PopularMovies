@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">PopularMovies</string>
+    <string name="api">put your api key here</string>
+    <string name="content_desc_movie_poster">Movie Poster</string>
+    <string name="string_sort_by">Sort By</string>
+    <string name="string_popularity">Popularity</string>
+    <string name="string_highest_rated">Highest Rated</string>
+    <string name="string_release_date">Release Date:</string>
+    <string name="string_rating">Rating:</string>
+    <string name="content_thumbnail">content_backdrop</string>
+    <string name="content_backdrop">content_backdrop</string>
+    <string name="content_grid_thumbnail">content_thumbnail</string>
+</resources>
