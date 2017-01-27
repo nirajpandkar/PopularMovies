@@ -5,7 +5,6 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
-
 import com.xipherlabs.popularmovies.model.Movie;
 
 public class MovieDetailsActivity extends AppCompatActivity {

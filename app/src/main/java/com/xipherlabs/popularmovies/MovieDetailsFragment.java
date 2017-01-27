@@ -1,7 +1,10 @@
 package com.xipherlabs.popularmovies;
 
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -9,8 +12,12 @@ import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -18,6 +25,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.squareup.picasso.Picasso;
+import com.xipherlabs.popularmovies.db.MovieContract;
+import com.xipherlabs.popularmovies.db.MovieDbHelper;
 import com.xipherlabs.popularmovies.model.Movie;
 import com.xipherlabs.popularmovies.model.ResultsDiscover;
 import com.xipherlabs.popularmovies.model.ResultsVideo;
@@ -46,6 +55,8 @@ public class MovieDetailsFragment extends Fragment {
     private static final String ARG_MOVIE = "movie";
     public static final String BACKDROP_BASE_URL = "https://image.tmdb.org/t/p/w780";
     private Movie mMovie;
+    private MenuItem star;
+    private boolean favorite = false;
 
     @BindView(R.id.thumbnail)
     ImageView poster;
@@ -85,7 +96,7 @@ public class MovieDetailsFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-
+        setHasOptionsMenu(true);
         View view = inflater.inflate(R.layout.fragment_movie_details, container, false);
         ButterKnife.bind(this, view);
 
@@ -100,8 +111,68 @@ public class MovieDetailsFragment extends Fragment {
         rating.setText(String.format(Locale.US, "%2.1f / 10", Double.parseDouble(mMovie.getVoteAvg())));
         new FetchVideoTask(getContext()).execute(mMovie.getId());
         new FetchReviewTask(getContext()).execute(mMovie.getId());
+        //added1
+        MovieDbHelper dbHelper = new MovieDbHelper(getContext());
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        Cursor c = db.query(MovieContract.MovieEntry.TABLE_NAME, new String[]{MovieContract.MovieEntry.COL_TMDB_ID}, MovieContract.MovieEntry.COL_TMDB_ID + "=?", new String[]{Long.toString(mMovie.getId())}, null, null, null);
+        if(c.moveToFirst()) {
+            favorite = true;
+        }
+        c.close();
+        db.close();
+        //end added1
+
         return view;
     }
+    //added2
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        inflater.inflate(R.menu.fragment_movie_detail, menu);
+        star = menu.findItem(R.id.favorite);
+        if(favorite) {
+            if(star != null) {
+                star.setIcon(R.drawable.ic_favorite_black);
+            }
+        }
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        super.onOptionsItemSelected(item);
+        if(item.getItemId() == R.id.favorite) {
+            item.setIcon(R.drawable.ic_favorite_black);
+            MovieDbHelper dbHelper = new MovieDbHelper(getContext());
+            SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+            if(!favorite) {
+
+                ContentValues contentValues = new ContentValues();
+                contentValues.put(MovieContract.MovieEntry.COL_TMDB_ID, mMovie.getId());
+                contentValues.put(MovieContract.MovieEntry.COL_TITLE, mMovie.getTitle());
+                contentValues.put(MovieContract.MovieEntry.COL_DESC, mMovie.getDescription());
+                contentValues.put(MovieContract.MovieEntry.COL_POSTER_PATH, mMovie.getPosterPath());
+                contentValues.put(MovieContract.MovieEntry.COL_REL_DATE, mMovie.getReleaseDate());
+                contentValues.put(MovieContract.MovieEntry.COL_ORIGINAL_TITLE, mMovie.getOriginalTitle());
+                contentValues.put(MovieContract.MovieEntry.COL_BACKDROP_PATH, mMovie.getBackdropPath());
+                contentValues.put(MovieContract.MovieEntry.COL_VOTE_AVG, mMovie.getVoteAvg());
+
+                long res = db.insert(MovieContract.MovieEntry.TABLE_NAME, null, contentValues);
+                Log.d("Row inserted: ", Long.toString(res));
+                favorite = true;
+            } else {
+                favorite = false;
+                item.setIcon(R.drawable.ic_favorite_border_black);
+                int n = db.delete(MovieContract.MovieEntry.TABLE_NAME, MovieContract.MovieEntry.COL_TMDB_ID + "=?", new String[]{Long.toString(mMovie.getId())});
+                Log.d("Rows deleted: ", Integer.toString(n));
+            }
+            db.close();
+            return true;
+        }
+
+        return false;
+    }
+    //end added2
 
     private class FetchVideoTask extends AsyncTask<Long, Void, List<Video>> {
 
