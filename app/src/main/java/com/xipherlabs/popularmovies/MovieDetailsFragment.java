@@ -61,7 +61,8 @@ public class MovieDetailsFragment extends Fragment {
     TextView rating;
     @BindView(R.id.trailerView)
     LinearLayout trailerView;
-
+    @BindView(R.id.reviewView)
+    LinearLayout reviewView;
 
     public MovieDetailsFragment() { }
 
@@ -98,7 +99,7 @@ public class MovieDetailsFragment extends Fragment {
         overview.setText(mMovie.getDescription());
         rating.setText(String.format(Locale.US, "%2.1f / 10", Double.parseDouble(mMovie.getVoteAvg())));
         new FetchVideoTask(getContext()).execute(mMovie.getId());
-        //new FetchReviewTask(getContext()).execute(mMovie.getId());
+        new FetchReviewTask(getContext()).execute(mMovie.getId());
         return view;
     }
 
@@ -173,7 +174,7 @@ public class MovieDetailsFragment extends Fragment {
             }
         }
     }
-/*
+
 
     public class FetchReviewTask extends AsyncTask<Long, Void, List<Review>> {
 
@@ -242,5 +243,5 @@ public class MovieDetailsFragment extends Fragment {
         }
     }
 
-*/
+
 }
