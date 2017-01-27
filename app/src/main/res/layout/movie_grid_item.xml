@@ -6,6 +6,7 @@
     <ImageView
         android:layout_width="match_parent"
         android:layout_height="270dp"
+        android:transitionName="@string/activity_image_trans"
         android:id="@+id/thumbnail"
         android:layout_gravity="center_horizontal"
         android:scaleType="centerCrop"

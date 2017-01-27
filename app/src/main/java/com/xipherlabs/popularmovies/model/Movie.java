@@ -1,12 +1,26 @@
-package com.xipherlabs.popularmovies;
+package com.xipherlabs.popularmovies.model;
 
+import com.google.gson.annotations.SerializedName;
 import java.io.Serializable;
 
-// TODO: Look at Parcelable vs Serializable & Update if need be.
-
 public class Movie implements Serializable{
-    private String title,originalTitle,description,posterPath,backdropPath,releaseDate,voteAvg;
+
+    @SerializedName("id")
     private long id;
+    @SerializedName("title")
+    private String title;
+    @SerializedName("overview")
+    private String description;
+    @SerializedName("vote_average")
+    private String voteAvg;
+    @SerializedName("poster_path")
+    private String posterPath;
+    @SerializedName("release_date")
+    private String releaseDate;
+    @SerializedName("original_title")
+    private String originalTitle;
+    @SerializedName("backdrop_path")
+    private String backdropPath;
 
     public Movie(){}
 

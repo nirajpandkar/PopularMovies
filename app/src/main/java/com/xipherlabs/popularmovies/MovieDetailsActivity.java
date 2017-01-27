@@ -6,6 +6,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import com.xipherlabs.popularmovies.model.Movie;
+
 public class MovieDetailsActivity extends AppCompatActivity {
     public static final String ARG_MOVIE = "movie";
     public static final String FRAGMENT = "movie_detail_fragment";

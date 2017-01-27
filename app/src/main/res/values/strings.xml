@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">PopularMovies</string>
-    <string name="api">put your api key here</string>
+    <string name="api">798a6a862c286e9b276d7f7dcbef2ca4</string>
     <string name="content_desc_movie_poster">Movie Poster</string>
     <string name="string_sort_by">Sort By</string>
     <string name="string_popularity">Popularity</string>
@@ -10,4 +10,10 @@
     <string name="content_thumbnail">content_backdrop</string>
     <string name="content_backdrop">content_backdrop</string>
     <string name="content_grid_thumbnail">content_thumbnail</string>
+    <string name="string_cd_trailer">Trailer</string>
+    <string name="string_trailers">Trailers and Videos:</string>
+    <string name="activity_image_trans">thumb</string>
+    <string name="string_reviews">Reviews:</string>
+    <string name="string_review_format" formatted="false">Author: %s \n\n%s…\n\n(Click to view rest)</string>
+    <string name="string_no_reviews">No reviews yet.</string>
 </resources>

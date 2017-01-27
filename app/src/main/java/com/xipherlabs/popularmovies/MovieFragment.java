@@ -4,8 +4,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.support.v4.app.ActivityOptionsCompat;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -16,6 +18,12 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.AdapterView;
 import android.widget.GridView;
+import android.widget.ImageView;
+
+import com.xipherlabs.popularmovies.model.Movie;
+import com.xipherlabs.popularmovies.model.ResultsDiscover;
+import com.xipherlabs.popularmovies.rest.MovieService;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -26,11 +34,25 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import butterknife.OnItemClick;
+
+import static com.xipherlabs.popularmovies.R.id.thumbnail;
 
 public class MovieFragment extends Fragment {
 
     MovieAdapter mAdapter;
+    @BindView(R.id.poster_grid)
     GridView movieGrid;
+
     public MovieFragment() { }
 
     @Override
@@ -39,21 +61,30 @@ public class MovieFragment extends Fragment {
         setHasOptionsMenu(true);
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_movie, container, false);
-
+        ButterKnife.bind(this,view);
         FetchDataTask dataTask = new FetchDataTask(getContext());
         dataTask.execute(FetchDataTask.SORT_BY_POPULARITY);
-        movieGrid = (GridView) view.findViewById(R.id.poster_grid);
+
+        //movieGrid = (GridView) view.findViewById(R.id.poster_grid);
         mAdapter = new MovieAdapter(getContext(), new ArrayList<Movie>());
         movieGrid.setAdapter(mAdapter);
-
-        movieGrid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                Intent intent = new Intent(getContext(), MovieDetailsActivity.class);intent.putExtra(MovieDetailsActivity.ARG_MOVIE, (Movie) parent.getItemAtPosition(position));
-                startActivity(intent);
-            }
-        });
         return view;
+    }
+
+    @OnItemClick(R.id.poster_grid)
+    public void gridItemClick(AdapterView<?> parent, View view, int position, long id) {
+        Intent intent = new Intent(getContext(), MovieDetailsActivity.class);intent.putExtra(MovieDetailsActivity.ARG_MOVIE, (Movie) parent.getItemAtPosition(position));
+        View v = (View) getActivity().findViewById(R.id.thumbnail);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            ActivityOptionsCompat options = ActivityOptionsCompat.
+                makeSceneTransitionAnimation(this.getActivity(), v, getString(R.string.activity_image_trans));
+            startActivity(intent, options.toBundle());
+        }
+        else {
+            startActivity(intent);
+        }
+
+
     }
 
     @Override
@@ -96,9 +127,10 @@ public class MovieFragment extends Fragment {
         }
     }
 
-    public class FetchDataTask extends AsyncTask<String, Void, Movie[]> {
+    public class FetchDataTask extends AsyncTask<String, Void, List<Movie>> {
 
         public static final String BASE_URL = "https://api.themoviedb.org/3/discover/movie?";
+        public static final String BASE_URL2 = "https://api.themoviedb.org/3/";
 
         public static final String PARAM_API_KEY = "api_key";
         public static final String PARAM_SORT_BY = "sort_by";
@@ -119,30 +151,46 @@ public class MovieFragment extends Fragment {
         }
 
         @Override
-        protected Movie[] doInBackground(String... sortBy) {
+        protected List<Movie> doInBackground(String... sortBy) {
             HttpURLConnection urlConnection = null;
             BufferedReader reader = null;
 
             String responseJson;
+
+            Retrofit retrofit = new Retrofit.Builder()
+                    .baseUrl(BASE_URL2)
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build();
             try {
-                Uri.Builder uriBuilder = Uri.parse(BASE_URL).buildUpon()
-                        .appendQueryParameter(PARAM_SORT_BY, sortBy[0])
-                        .appendQueryParameter(PARAM_API_KEY, mContext.getString(R.string.api));
-                if(sortBy[0].equals(SORT_BY_RATING))
-                    uriBuilder.appendQueryParameter("vote_count.gte", "500"); //consider Votes for better/relevant results
 
-                Uri uri = uriBuilder.build();
-                URL url = new URL(uri.toString());
+                    MovieService movieService = retrofit.create(MovieService.class);
+                    Call<ResultsDiscover> call = movieService.getPopularMovies(mContext.getString(R.string.api), sortBy[0], (sortBy[0].equals(SORT_BY_RATING) ? "1000" : "0"));
+                    Response<ResultsDiscover> response = call.execute();
+                    return response.body().getResults();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
 
-                urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setRequestMethod("GET");
-                urlConnection.connect();
+                /*
+                try{
+                    Uri.Builder uriBuilder = Uri.parse(BASE_URL).buildUpon()
+                            .appendQueryParameter(PARAM_SORT_BY, sortBy[0])
+                            .appendQueryParameter(PARAM_API_KEY, mContext.getString(R.string.api));
+                    if(sortBy[0].equals(SORT_BY_RATING))
+                        uriBuilder.appendQueryParameter("vote_count.gte", "500"); //consider Votes for better/relevant results
 
-                InputStream inputStream = urlConnection.getInputStream();
-                StringBuffer buffer = new StringBuffer();
-                if(inputStream == null) {
-                    responseJson = null;
-                    return null;
+                    Uri uri = uriBuilder.build();
+                    URL url = new URL(uri.toString());
+
+                    urlConnection = (HttpURLConnection) url.openConnection();
+                    urlConnection.setRequestMethod("GET");
+                    urlConnection.connect();
+
+                    InputStream inputStream = urlConnection.getInputStream();
+                    StringBuffer buffer = new StringBuffer();
+                    if(inputStream == null) {
+                        responseJson = null;
+                        return null;
                 }
 
                 reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -178,7 +226,7 @@ public class MovieFragment extends Fragment {
                 return parseJson(responseJson);
             } catch (JSONException e) {
                 e.printStackTrace();
-            }
+            }*/
 
             return null;
         }
@@ -205,7 +253,7 @@ public class MovieFragment extends Fragment {
         }
 
         @Override
-        protected void onPostExecute(Movie[] movies) {
+        protected void onPostExecute(List<Movie> movies) {
            super.onPostExecute(movies);
             mAdapter.clear();
             for(Movie movie: movies) {
