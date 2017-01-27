@@ -6,9 +6,12 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
@@ -57,7 +60,7 @@ public class MovieDetailsFragment extends Fragment {
     private Movie mMovie;
     private MenuItem star;
     private boolean favorite = false;
-
+    private View viewParent;
     @BindView(R.id.thumbnail)
     ImageView poster;
     @BindView(R.id.title)
@@ -98,6 +101,7 @@ public class MovieDetailsFragment extends Fragment {
                              Bundle savedInstanceState) {
         setHasOptionsMenu(true);
         View view = inflater.inflate(R.layout.fragment_movie_details, container, false);
+        viewParent = view;
         ButterKnife.bind(this, view);
 
         Picasso.with(getContext()).load(MovieAdapter.IMAGE_BASE_URL + mMovie.getPosterPath()).into(poster);
@@ -109,8 +113,19 @@ public class MovieDetailsFragment extends Fragment {
         releaseDate.setText(DateFormat.format("MMMM dd, yyyy", date));
         overview.setText(mMovie.getDescription());
         rating.setText(String.format(Locale.US, "%2.1f / 10", Double.parseDouble(mMovie.getVoteAvg())));
-        new FetchVideoTask(getContext()).execute(mMovie.getId());
-        new FetchReviewTask(getContext()).execute(mMovie.getId());
+
+        NetworkInfo networkInfo = ((ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE)).getActiveNetworkInfo();
+
+        if(networkInfo != null && networkInfo.isConnected()) {
+            new FetchVideoTask(getContext()).execute(mMovie.getId());
+            new FetchReviewTask(getContext()).execute(mMovie.getId());
+        }else{
+            Snackbar.make(container, "Offline Mode", Snackbar.LENGTH_LONG).show();
+            reviewView.setVisibility(View.GONE);
+            trailerView.setVisibility(View.GONE);
+            view.findViewById(R.id.trailerTitle).setVisibility(View.GONE);
+            view.findViewById(R.id.reviewTitle).setVisibility(View.GONE);
+        }
         //added1
         MovieDbHelper dbHelper = new MovieDbHelper(getContext());
         SQLiteDatabase db = dbHelper.getWritableDatabase();
@@ -146,7 +161,6 @@ public class MovieDetailsFragment extends Fragment {
             SQLiteDatabase db = dbHelper.getWritableDatabase();
 
             if(!favorite) {
-
                 ContentValues contentValues = new ContentValues();
                 contentValues.put(MovieContract.MovieEntry.COL_TMDB_ID, mMovie.getId());
                 contentValues.put(MovieContract.MovieEntry.COL_TITLE, mMovie.getTitle());
@@ -181,7 +195,7 @@ public class MovieDetailsFragment extends Fragment {
         public static final String YT_VIDEO_BASE = "http://www.youtube.com/watch?v=";
 
         private Context mContext;
-
+        boolean networkError = false;
         public FetchVideoTask(Context mContext) {
             this.mContext = mContext;
         }
@@ -201,6 +215,7 @@ public class MovieDetailsFragment extends Fragment {
                 Response<ResultsVideo> response = call.execute();
                 return response.body().getVideos();
             } catch (IOException e) {
+                networkError = true;
                 e.printStackTrace();
             }
 
@@ -211,37 +226,33 @@ public class MovieDetailsFragment extends Fragment {
         protected void onPostExecute(final List<Video> videos) {
             super.onPostExecute(videos);
             //TODO:RE-EVAL THIS NEW CODE
-            View.OnClickListener onClickListener = new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(YT_VIDEO_BASE + videos.get((Integer) v.getTag()).getKey()));
-                    startActivity(i);
-                }
-            };
-
-
-            for (int i = 0; i < videos.size(); i++) {
-                if (i >= 2) {
-                    ImageView imageView = new ImageView(mContext);
-                    imageView.setLayoutParams(trailerView.getChildAt(0).getLayoutParams());
-                    trailerView.addView(imageView);
-                }
-                Picasso.with(mContext).load(Uri.parse(String.format(YT_THUMB_BASE, videos.get(i).getKey()))).into((ImageView) trailerView.getChildAt(i));
-                trailerView.getChildAt(i).setTag(i);
-                trailerView.getChildAt(i).setOnClickListener(onClickListener);
-
-               /* trailerView.getChildAt(i).setOnClickListener(new View.OnClickListener() {
+            if (videos != null && videos.size() != 0) {
+                View.OnClickListener onClickListener = new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
                         Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(YT_VIDEO_BASE + videos.get((Integer) v.getTag()).getKey()));
                         startActivity(i);
                     }
-                });*/
-            }
+                };
+                for (int i = 0; i < videos.size(); i++) {
+                    if (i >= 2) {
+                        ImageView imageView = new ImageView(mContext);
+                        imageView.setLayoutParams(trailerView.getChildAt(0).getLayoutParams());
+                        trailerView.addView(imageView);
+                    }
 
-            //If we have only 1 trailer, disable the second ImageView.
-            if (videos.size() < 2) {
-                trailerView.getChildAt(1).setVisibility(View.GONE);
+                    Picasso.with(mContext).load(Uri.parse(String.format(YT_THUMB_BASE, videos.get(i).getKey()))).into((ImageView) trailerView.getChildAt(i));
+                    trailerView.getChildAt(i).setTag(i);
+                    trailerView.getChildAt(i).setOnClickListener(onClickListener);
+                }
+                if (videos.size() < 2) {
+                    trailerView.getChildAt(1).setVisibility(View.GONE);
+                }
+
+            }else{
+                if(networkError) {
+                 Snackbar.make(viewParent, "Network Error", Snackbar.LENGTH_INDEFINITE).show();
+                }
             }
         }
     }
@@ -250,6 +261,7 @@ public class MovieDetailsFragment extends Fragment {
     public class FetchReviewTask extends AsyncTask<Long, Void, List<Review>> {
 
         private Context mContext;
+        boolean networkError = false;
 
         public FetchReviewTask(Context mContext) {
             this.mContext = mContext;
@@ -271,6 +283,7 @@ public class MovieDetailsFragment extends Fragment {
                 Response<ReviewResults> response = call.execute();
                 return response.body().getResults();
             } catch (IOException e) {
+                networkError = true;
                 e.printStackTrace();
             }
 
@@ -281,35 +294,45 @@ public class MovieDetailsFragment extends Fragment {
         protected void onPostExecute(final List<Review> reviews) {
             super.onPostExecute(reviews);
 
-            if(reviews.size() == 0) {
-                ((TextView) reviewView.getChildAt(0)).setText(R.string.string_no_reviews);
-                return;
-            }
 
-            View.OnClickListener onClickListener = new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(reviews.get((Integer) v.getTag()).getUrl()));
-                    startActivity(i);
-                }
-            };
 
-            for(int i = 0; i < reviews.size(); i++) {
-                if(i >= 1) {
-                    TextView v = new TextView(mContext);
-                    v.setLayoutParams(reviewView.getChildAt(0).getLayoutParams());
-                    v.setTextColor(mContext.getResources().getColor(android.R.color.white));
-                    v.setMaxLines(20);
-                    v.setEllipsize(TextUtils.TruncateAt.END);
-                    TypedValue outValue = new TypedValue();
-                    mContext.getTheme().resolveAttribute(R.attr.selectableItemBackground, outValue, true);
-                    v.setBackgroundResource(outValue.resourceId);
-                    reviewView.addView(v);
+            if (reviews != null) {
+                if(reviews.size() == 0) {
+                    ((TextView) reviewView.getChildAt(0)).setText(R.string.string_no_reviews);
+                    return;
                 }
-                String s1 = (reviews.get(i).getContent().length() > 400 ? reviews.get(i).getContent().substring(0, 400) : reviews.get(i).getContent());
-                ((TextView) reviewView.getChildAt(i)).setText(String.format(mContext.getString(R.string.string_review_format), reviews.get(i).getAuthor(), s1));
-                reviewView.getChildAt(i).setTag(i);
-                reviewView.getChildAt(i).setOnClickListener(onClickListener);
+
+                View.OnClickListener onClickListener = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(reviews.get((Integer) v.getTag()).getUrl()));
+                        startActivity(i);
+                    }
+                };
+
+                for(int i = 0; i < reviews.size(); i++) {
+                    if(i >= 1) {
+                        TextView v = new TextView(mContext);
+                        v.setLayoutParams(reviewView.getChildAt(0).getLayoutParams());
+                        v.setTextColor(mContext.getResources().getColor(android.R.color.white));
+                        v.setMaxLines(20);
+                        v.setEllipsize(TextUtils.TruncateAt.END);
+                        TypedValue outValue = new TypedValue();
+                        mContext.getTheme().resolveAttribute(R.attr.selectableItemBackground, outValue, true);
+                        v.setBackgroundResource(outValue.resourceId);
+                        reviewView.addView(v);
+                    }
+                    String s1 = (reviews.get(i).getContent().length() > 400 ? reviews.get(i).getContent().substring(0, 400) : reviews.get(i).getContent());
+                    ((TextView) reviewView.getChildAt(i)).setText(String.format(mContext.getString(R.string.string_review_format), reviews.get(i).getAuthor(), s1));
+                    reviewView.getChildAt(i).setTag(i);
+                    reviewView.getChildAt(i).setOnClickListener(onClickListener);
+                }
+            } else {
+                if(networkError) {
+                    ((TextView) reviewView.getChildAt(0)).setText(R.string.string_review_network_error);
+                } else {
+                    ((TextView) reviewView.getChildAt(0)).setText(R.string.string_no_reviews);
+                }
             }
         }
     }
