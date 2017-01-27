@@ -1,17 +1,22 @@
 package com.xipherlabs.popularmovies;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.ActivityOptionsCompat;
 import android.support.v4.app.Fragment;
+import android.support.v4.util.Pair;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -19,11 +24,13 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import com.xipherlabs.popularmovies.db.FavoritesProvider;
 import com.xipherlabs.popularmovies.db.MovieContract;
 import com.xipherlabs.popularmovies.db.MovieDbHelper;
 import com.xipherlabs.popularmovies.model.Movie;
@@ -70,7 +77,15 @@ public class MovieFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_movie, container, false);
         ButterKnife.bind(this,view);
         FetchDataTask dataTask = new FetchDataTask(getContext());
-        dataTask.execute(FetchDataTask.SORT_BY_POPULARITY);
+        //dataTask.execute(FetchDataTask.SORT_BY_POPULARITY);
+
+
+        NetworkInfo networkInfo = ((ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE)).getActiveNetworkInfo();
+        if(networkInfo != null && networkInfo.isConnected()) {
+            dataTask.execute(FetchDataTask.SORT_BY_POPULARITY);
+        } else {
+            Toast.makeText(getContext(), R.string.string_review_network_error, Toast.LENGTH_SHORT).show();
+        }
 
         //movieGrid = (GridView) view.findViewById(R.id.poster_grid);
         mAdapter = new MovieAdapter(getContext(), new ArrayList<Movie>());
@@ -79,8 +94,9 @@ public class MovieFragment extends Fragment {
     }
 
     @OnItemClick(R.id.poster_grid)
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public void gridItemClick(AdapterView<?> parent, View view, int position, long id) {
-        Intent intent = new Intent(getContext(), MovieDetailsActivity.class);intent.putExtra(MovieDetailsActivity.ARG_MOVIE, (Movie) parent.getItemAtPosition(position));
+       /* Intent intent = new Intent(getContext(), MovieDetailsActivity.class);intent.putExtra(MovieDetailsActivity.ARG_MOVIE, (Movie) parent.getItemAtPosition(position));
         View v = (View) getActivity().findViewById(R.id.thumbnail);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             ActivityOptionsCompat options = ActivityOptionsCompat.
@@ -89,8 +105,24 @@ public class MovieFragment extends Fragment {
         }
         else {
             startActivity(intent);
-        }
-
+        }*/
+            Intent i = new Intent(getContext(), MovieDetailsActivity.class);
+            i.putExtra(MovieDetailsActivity.ARG_MOVIE, (Movie) parent.getItemAtPosition(position));
+            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                View statusBar = getActivity().getWindow().getDecorView().findViewById(android.R.id.statusBarBackground);
+                View navigationBar = getActivity().getWindow().getDecorView().findViewById(android.R.id.navigationBarBackground);
+                View toolbar = getActivity().findViewById(R.id.toolbar);
+                List<Pair<View, String>> pairs = new ArrayList<Pair<View, String>>();
+                pairs.add(Pair.create(toolbar, "toolbar"));
+                if(statusBar != null) pairs.add(Pair.create(statusBar, Window.STATUS_BAR_BACKGROUND_TRANSITION_NAME));
+                if(navigationBar != null) pairs.add(Pair.create(navigationBar, Window.NAVIGATION_BAR_BACKGROUND_TRANSITION_NAME));
+                pairs.add(Pair.create(view, "poster"));
+                pairs.add(Pair.create(view,getString(R.string.activity_image_trans)));
+                ActivityOptionsCompat optionsCompat = ActivityOptionsCompat.makeSceneTransitionAnimation(getActivity(), pairs.toArray(new Pair[pairs.size()]));
+                ActivityCompat.startActivity(getActivity(), i, optionsCompat.toBundle());
+            }else {
+                startActivity(i);
+            }
 
     }
 
@@ -296,39 +328,42 @@ public class MovieFragment extends Fragment {
 
             List<Movie> movieList = new ArrayList<>();
 
-            Cursor c = db.query(MovieContract.MovieEntry.TABLE_NAME, null, null, null, null, null, null);
-            int colTmdbId = c.getColumnIndex(MovieContract.MovieEntry.COL_TMDB_ID);
-            int colTitle = c.getColumnIndex(MovieContract.MovieEntry.COL_TITLE);
-            int colDesc = c.getColumnIndex(MovieContract.MovieEntry.COL_DESC);
-            int colPoster = c.getColumnIndex(MovieContract.MovieEntry.COL_POSTER_PATH);
-            int colRelDate = c.getColumnIndex(MovieContract.MovieEntry.COL_REL_DATE);
-            int colOgTitle = c.getColumnIndex(MovieContract.MovieEntry.COL_ORIGINAL_TITLE);
-            int colBackdrop = c.getColumnIndex(MovieContract.MovieEntry.COL_BACKDROP_PATH);
-            int colVoteAvg = c.getColumnIndex(MovieContract.MovieEntry.COL_VOTE_AVG);
+            //Cursor c = db.query(MovieContract.MovieEntry.TABLE_NAME, null, null, null, null, null, null);
+            Cursor c = mContext.getContentResolver().query(FavoritesProvider.Movies.CONTENT_URI, null, null, null, null);
+            if (c != null) {
+                int colTmdbId = c.getColumnIndex(MovieContract.MovieEntry.COL_TMDB_ID);
+                int colTitle = c.getColumnIndex(MovieContract.MovieEntry.COL_TITLE);
+                int colDesc = c.getColumnIndex(MovieContract.MovieEntry.COL_DESC);
+                int colPoster = c.getColumnIndex(MovieContract.MovieEntry.COL_POSTER_PATH);
+                int colRelDate = c.getColumnIndex(MovieContract.MovieEntry.COL_REL_DATE);
+                int colOgTitle = c.getColumnIndex(MovieContract.MovieEntry.COL_ORIGINAL_TITLE);
+                int colBackdrop = c.getColumnIndex(MovieContract.MovieEntry.COL_BACKDROP_PATH);
+                int colVoteAvg = c.getColumnIndex(MovieContract.MovieEntry.COL_VOTE_AVG);
 
-            if(c.moveToFirst()) {
-                movieList.add(new Movie(c.getString(colTitle),
-                        c.getString(colDesc),
-                        c.getString(colPoster),
-                        c.getString(colRelDate),
-                        c.getLong(colTmdbId),
-                        c.getString(colOgTitle),
-                        c.getString(colBackdrop),
-                        c.getString(colVoteAvg)));
+                if(c.moveToFirst()) {
+                    movieList.add(new Movie(c.getString(colTitle),
+                            c.getString(colDesc),
+                            c.getString(colPoster),
+                            c.getString(colRelDate),
+                            c.getLong(colTmdbId),
+                            c.getString(colOgTitle),
+                            c.getString(colBackdrop),
+                            c.getString(colVoteAvg)));
+                }
+
+                while(c.moveToNext()) {
+                    movieList.add(new Movie(c.getString(colTitle),
+                            c.getString(colDesc),
+                            c.getString(colPoster),
+                            c.getString(colRelDate),
+                            c.getLong(colTmdbId),
+                            c.getString(colOgTitle),
+                            c.getString(colBackdrop),
+                            c.getString(colVoteAvg)));
+                }
+
+                c.close();
             }
-
-            while(c.moveToNext()) {
-                movieList.add(new Movie(c.getString(colTitle),
-                        c.getString(colDesc),
-                        c.getString(colPoster),
-                        c.getString(colRelDate),
-                        c.getLong(colTmdbId),
-                        c.getString(colOgTitle),
-                        c.getString(colBackdrop),
-                        c.getString(colVoteAvg)));
-            }
-
-            c.close();
             db.close();
 
             return movieList;

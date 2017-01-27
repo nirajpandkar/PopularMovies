@@ -4,7 +4,6 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -28,8 +27,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.squareup.picasso.Picasso;
+import com.xipherlabs.popularmovies.db.FavoritesProvider;
 import com.xipherlabs.popularmovies.db.MovieContract;
-import com.xipherlabs.popularmovies.db.MovieDbHelper;
 import com.xipherlabs.popularmovies.model.Movie;
 import com.xipherlabs.popularmovies.model.ResultsDiscover;
 import com.xipherlabs.popularmovies.model.ResultsVideo;
@@ -127,15 +126,15 @@ public class MovieDetailsFragment extends Fragment {
             view.findViewById(R.id.reviewTitle).setVisibility(View.GONE);
         }
         //added1
-        MovieDbHelper dbHelper = new MovieDbHelper(getContext());
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        Cursor c = db.query(MovieContract.MovieEntry.TABLE_NAME, new String[]{MovieContract.MovieEntry.COL_TMDB_ID}, MovieContract.MovieEntry.COL_TMDB_ID + "=?", new String[]{Long.toString(mMovie.getId())}, null, null, null);
-        if(c.moveToFirst()) {
+       /* MovieDbHelper dbHelper = new MovieDbHelper(getContext());
+        SQLiteDatabase db = dbHelper.getWritableDatabase();*/
+
+        Cursor c = getContext().getContentResolver().query(FavoritesProvider.Movies.CONTENT_URI, new String[]{MovieContract.MovieEntry.COL_TMDB_ID}, MovieContract.MovieEntry.COL_TMDB_ID + "=?", new String[]{Long.toString(mMovie.getId())}, null);
+
+        if(c != null && c.moveToFirst()) {
             favorite = true;
         }
-        c.close();
-        db.close();
-        //end added1
+        if(c != null) c.close();
 
         return view;
     }
@@ -157,9 +156,10 @@ public class MovieDetailsFragment extends Fragment {
         super.onOptionsItemSelected(item);
         if(item.getItemId() == R.id.favorite) {
             item.setIcon(R.drawable.ic_favorite_black);
+            /*
             MovieDbHelper dbHelper = new MovieDbHelper(getContext());
             SQLiteDatabase db = dbHelper.getWritableDatabase();
-
+            */
             if(!favorite) {
                 ContentValues contentValues = new ContentValues();
                 contentValues.put(MovieContract.MovieEntry.COL_TMDB_ID, mMovie.getId());
@@ -171,16 +171,20 @@ public class MovieDetailsFragment extends Fragment {
                 contentValues.put(MovieContract.MovieEntry.COL_BACKDROP_PATH, mMovie.getBackdropPath());
                 contentValues.put(MovieContract.MovieEntry.COL_VOTE_AVG, mMovie.getVoteAvg());
 
-                long res = db.insert(MovieContract.MovieEntry.TABLE_NAME, null, contentValues);
-                Log.d("Row inserted: ", Long.toString(res));
+                //long res = db.insert(MovieContract.MovieEntry.TABLE_NAME, null, contentValues);
+                Uri u = getContext().getContentResolver().insert(FavoritesProvider.Movies.CONTENT_URI, contentValues);
+
+                if(u != null)
+                    Log.d("Row inserted: ", u.toString());
                 favorite = true;
             } else {
                 favorite = false;
                 item.setIcon(R.drawable.ic_favorite_border_black);
-                int n = db.delete(MovieContract.MovieEntry.TABLE_NAME, MovieContract.MovieEntry.COL_TMDB_ID + "=?", new String[]{Long.toString(mMovie.getId())});
+                int n = getContext().getContentResolver().delete(FavoritesProvider.Movies.CONTENT_URI, MovieContract.MovieEntry.COL_TMDB_ID + "=?", new String[]{Long.toString(mMovie.getId())});
+                //int n = db.delete(MovieContract.MovieEntry.TABLE_NAME, MovieContract.MovieEntry.COL_TMDB_ID + "=?", new String[]{Long.toString(mMovie.getId())});
                 Log.d("Rows deleted: ", Integer.toString(n));
             }
-            db.close();
+            //db.close();
             return true;
         }
 
