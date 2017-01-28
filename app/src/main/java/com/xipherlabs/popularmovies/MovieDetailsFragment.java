@@ -58,7 +58,11 @@ public class MovieDetailsFragment extends Fragment {
     public static final String BACKDROP_BASE_URL = "https://image.tmdb.org/t/p/w780";
     private Movie mMovie;
     private MenuItem star;
+    private MenuItem share;
     private boolean favorite = false;
+    boolean trailerSharePrepared = false;
+    private Uri trailerUri;
+    boolean offlineMode = false;
     private View viewParent;
     @BindView(R.id.thumbnail)
     ImageView poster;
@@ -99,6 +103,7 @@ public class MovieDetailsFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         setHasOptionsMenu(true);
+        trailerSharePrepared = false;
         View view = inflater.inflate(R.layout.fragment_movie_details, container, false);
         viewParent = view;
         ButterKnife.bind(this, view);
@@ -119,6 +124,7 @@ public class MovieDetailsFragment extends Fragment {
             new FetchVideoTask(getContext()).execute(mMovie.getId());
             new FetchReviewTask(getContext()).execute(mMovie.getId());
         }else{
+            offlineMode = true;
             Snackbar.make(container, "Offline Mode", Snackbar.LENGTH_LONG).show();
             reviewView.setVisibility(View.GONE);
             trailerView.setVisibility(View.GONE);
@@ -148,6 +154,10 @@ public class MovieDetailsFragment extends Fragment {
             if(star != null) {
                 star.setIcon(R.drawable.ic_favorite_black);
             }
+        }
+        share = menu.findItem(R.id.share);
+        if(share != null && offlineMode) {
+            share.setVisible(false);
         }
     }
 
@@ -187,10 +197,19 @@ public class MovieDetailsFragment extends Fragment {
             //db.close();
             return true;
         }
+        if (item.getItemId() == R.id.share) {
+            if (trailerSharePrepared) {
+                Intent intent = new Intent(Intent.ACTION_SEND);
+                intent.putExtra(Intent.EXTRA_TEXT, trailerUri.toString());
+                intent.setType("text/plain");
+                startActivity(Intent.createChooser(intent, getString(R.string.string_share_trailer)));
+            } else {
+                Snackbar.make(viewParent, getContext().getString(R.string.string_trailer_not_loaded), Snackbar.LENGTH_SHORT).show();
+            }
+        }
 
         return false;
     }
-    //end added2
 
     private class FetchVideoTask extends AsyncTask<Long, Void, List<Video>> {
 
@@ -231,6 +250,8 @@ public class MovieDetailsFragment extends Fragment {
             super.onPostExecute(videos);
             //TODO:RE-EVAL THIS NEW CODE
             if (videos != null && videos.size() != 0) {
+                trailerUri = Uri.parse(YT_VIDEO_BASE + videos.get(0).getKey());
+                trailerSharePrepared = true;
                 View.OnClickListener onClickListener = new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {

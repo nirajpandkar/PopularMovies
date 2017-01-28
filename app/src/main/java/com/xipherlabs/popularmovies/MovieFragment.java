@@ -62,10 +62,19 @@ import butterknife.OnItemClick;
 import static com.xipherlabs.popularmovies.R.id.thumbnail;
 
 public class MovieFragment extends Fragment {
-
+    public static final String ARG_TWO_PANE = "2_pane";
+    private boolean mTwoPane = false;
     MovieAdapter mAdapter;
     @BindView(R.id.poster_grid)
     GridView movieGrid;
+
+    public static MovieFragment newInstance(boolean twoPane) {
+        MovieFragment movieFragment = new MovieFragment();
+        Bundle b = new Bundle();
+        b.putBoolean(ARG_TWO_PANE, twoPane);
+        movieFragment.setArguments(b);
+        return movieFragment;
+    }
 
     public MovieFragment() { }
 
@@ -74,6 +83,7 @@ public class MovieFragment extends Fragment {
                              Bundle savedInstanceState) {
         setHasOptionsMenu(true);
         // Inflate the layout for this fragment
+        mTwoPane = getArguments().getBoolean(ARG_TWO_PANE, false);
         View view = inflater.inflate(R.layout.fragment_movie, container, false);
         ButterKnife.bind(this,view);
         FetchDataTask dataTask = new FetchDataTask(getContext());
@@ -96,34 +106,30 @@ public class MovieFragment extends Fragment {
     @OnItemClick(R.id.poster_grid)
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public void gridItemClick(AdapterView<?> parent, View view, int position, long id) {
-       /* Intent intent = new Intent(getContext(), MovieDetailsActivity.class);intent.putExtra(MovieDetailsActivity.ARG_MOVIE, (Movie) parent.getItemAtPosition(position));
-        View v = (View) getActivity().findViewById(R.id.thumbnail);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            ActivityOptionsCompat options = ActivityOptionsCompat.
-                makeSceneTransitionAnimation(this.getActivity(), v, getString(R.string.activity_image_trans));
-            startActivity(intent, options.toBundle());
+        if(mTwoPane) {
+            Toast.makeText(getContext(),"Two Panes m8",Toast.LENGTH_SHORT).show();
+            MovieDetailsFragment detailFragment = MovieDetailsFragment.newInstance((Movie) parent.getItemAtPosition(position));
+            getFragmentManager().beginTransaction().replace(R.id.detailfrag_container, detailFragment).addToBackStack(null).commit();
+            return;
         }
-        else {
-            startActivity(intent);
-        }*/
-            Intent i = new Intent(getContext(), MovieDetailsActivity.class);
-            i.putExtra(MovieDetailsActivity.ARG_MOVIE, (Movie) parent.getItemAtPosition(position));
-            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                View statusBar = getActivity().getWindow().getDecorView().findViewById(android.R.id.statusBarBackground);
-                View navigationBar = getActivity().getWindow().getDecorView().findViewById(android.R.id.navigationBarBackground);
-                View toolbar = getActivity().findViewById(R.id.toolbar);
-                List<Pair<View, String>> pairs = new ArrayList<Pair<View, String>>();
-                pairs.add(Pair.create(toolbar, "toolbar"));
-                if(statusBar != null) pairs.add(Pair.create(statusBar, Window.STATUS_BAR_BACKGROUND_TRANSITION_NAME));
-                if(navigationBar != null) pairs.add(Pair.create(navigationBar, Window.NAVIGATION_BAR_BACKGROUND_TRANSITION_NAME));
-                pairs.add(Pair.create(view, "poster"));
-                pairs.add(Pair.create(view,getString(R.string.activity_image_trans)));
-                ActivityOptionsCompat optionsCompat = ActivityOptionsCompat.makeSceneTransitionAnimation(getActivity(), pairs.toArray(new Pair[pairs.size()]));
-                ActivityCompat.startActivity(getActivity(), i, optionsCompat.toBundle());
-            }else {
-                startActivity(i);
-            }
-
+        Toast.makeText(getContext(),"One Pane m8",Toast.LENGTH_SHORT).show();
+        Intent i = new Intent(getContext(), MovieDetailsActivity.class);
+        i.putExtra(MovieDetailsActivity.ARG_MOVIE, (Movie) parent.getItemAtPosition(position));
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            View statusBar = getActivity().getWindow().getDecorView().findViewById(android.R.id.statusBarBackground);
+            View navigationBar = getActivity().getWindow().getDecorView().findViewById(android.R.id.navigationBarBackground);
+            View toolbar = getActivity().findViewById(R.id.toolbar);
+            List<Pair<View, String>> pairs = new ArrayList<Pair<View, String>>();
+            pairs.add(Pair.create(toolbar, "toolbar"));
+            if(statusBar != null) pairs.add(Pair.create(statusBar, Window.STATUS_BAR_BACKGROUND_TRANSITION_NAME));
+            if(navigationBar != null) pairs.add(Pair.create(navigationBar, Window.NAVIGATION_BAR_BACKGROUND_TRANSITION_NAME));
+            pairs.add(Pair.create(view, "poster"));
+            pairs.add(Pair.create(view,getString(R.string.activity_image_trans)));
+            ActivityOptionsCompat optionsCompat = ActivityOptionsCompat.makeSceneTransitionAnimation(getActivity(), pairs.toArray(new Pair[pairs.size()]));
+            ActivityCompat.startActivity(getActivity(), i, optionsCompat.toBundle());
+        }else {
+            startActivity(i);
+        }
     }
 
     @Override

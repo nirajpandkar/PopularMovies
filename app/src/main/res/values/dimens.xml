@@ -7,7 +7,7 @@
 
     <dimen name="activity_horizontal_margin">16dp</dimen>
     <dimen name="activity_vertical_margin">16dp</dimen>
-
+    <dimen name="grid_image_height">270dp</dimen>
     <dimen name="std_horizontal_margin">16dp</dimen>
     <dimen name="std_vertical_margin">16dp</dimen>
 
