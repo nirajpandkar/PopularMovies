@@ -11,6 +11,4 @@
         android:layout_gravity="center_horizontal"
         android:scaleType="centerCrop"
         android:contentDescription="@string/content_grid_thumbnail" />
-
-    <!-- TODO: Put Height into Dimens! -->
 </LinearLayout>

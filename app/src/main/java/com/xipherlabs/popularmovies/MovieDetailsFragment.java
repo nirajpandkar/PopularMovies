@@ -26,6 +26,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.squareup.picasso.Picasso;
+import com.xipherlabs.popularmovies.adapter.MovieAdapter;
 import com.xipherlabs.popularmovies.db.FavoritesProvider;
 import com.xipherlabs.popularmovies.db.MovieContract;
 import com.xipherlabs.popularmovies.model.Movie;
@@ -33,7 +34,7 @@ import com.xipherlabs.popularmovies.model.ResultsVideo;
 import com.xipherlabs.popularmovies.model.Review;
 import com.xipherlabs.popularmovies.model.ResultsReview;
 import com.xipherlabs.popularmovies.model.Video;
-import com.xipherlabs.popularmovies.rest.MovieService;
+import com.xipherlabs.popularmovies.rest.Service;
 
 import java.io.IOException;
 import java.text.ParsePosition;
@@ -129,12 +130,12 @@ public class MovieDetailsFragment extends Fragment {
             view.findViewById(R.id.trailerTitle).setVisibility(View.GONE);
             view.findViewById(R.id.reviewTitle).setVisibility(View.GONE);
         }
-        //added1
-       /* MovieDbHelper dbHelper = new MovieDbHelper(getContext());
-        SQLiteDatabase db = dbHelper.getWritableDatabase();*/
-
-        Cursor c = getContext().getContentResolver().query(FavoritesProvider.Movies.CONTENT_URI, new String[]{MovieContract.MovieEntry.COL_TMDB_ID}, MovieContract.MovieEntry.COL_TMDB_ID + "=?", new String[]{Long.toString(mMovie.getId())}, null);
-
+        Cursor c = getContext().getContentResolver()
+                .query(FavoritesProvider.Movies.CONTENT_URI
+                        , new String[]{MovieContract.MovieEntry.COL_TMDB_ID}
+                        , MovieContract.MovieEntry.COL_TMDB_ID + "=?"
+                        , new String[]{Long.toString(mMovie.getId())}
+                        , null);
         if(c != null && c.moveToFirst()) {
             favorite = true;
         }
@@ -142,7 +143,6 @@ public class MovieDetailsFragment extends Fragment {
 
         return view;
     }
-    //added2
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         super.onCreateOptionsMenu(menu, inflater);
@@ -202,9 +202,8 @@ public class MovieDetailsFragment extends Fragment {
 
         return false;
     }
-    //TODO: Have a look at ReactiveX
     private class FetchVideoTask extends AsyncTask<Long, Void, List<Video>> {
-        //Reference: http://stackoverflow.com/a/8842839/2663152
+        //Reference (YouTube Video Thumbnails: http://stackoverflow.com/a/8842839
         public static final String YT_THUMB_BASE = "http://img.youtube.com/vi/%s/0.jpg";
         public static final String YT_VIDEO_BASE = "http://www.youtube.com/watch?v=";
 
@@ -222,8 +221,8 @@ public class MovieDetailsFragment extends Fragment {
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();
 
-            MovieService movieService = retrofit.create(MovieService.class);
-            Call<ResultsVideo> call = movieService.getVideosForMovie(params[0], mContext.getString(R.string.api));
+            Service service = retrofit.create(Service.class);
+            Call<ResultsVideo> call = service.getVideosForMovie(params[0], mContext.getString(R.string.api));
 
             try {
                 Response<ResultsVideo> response = call.execute();
@@ -241,11 +240,10 @@ public class MovieDetailsFragment extends Fragment {
             if (videos != null && videos.size() != 0) {
                 trailerUri = Uri.parse(YT_VIDEO_BASE + videos.get(0).getKey());
                 trailerSharePrepared = true;
-                View.OnClickListener onClickListener = new View.OnClickListener() {
+                View.OnClickListener onVideoClickListener = new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(YT_VIDEO_BASE + videos.get((Integer) v.getTag()).getKey()));
-                        startActivity(i);
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(YT_VIDEO_BASE + videos.get((Integer) v.getTag()).getKey())));
                     }
                 };
                 for (int i = 0; i < videos.size(); i++) {
@@ -257,7 +255,7 @@ public class MovieDetailsFragment extends Fragment {
 
                     Picasso.with(mContext).load(Uri.parse(String.format(YT_THUMB_BASE, videos.get(i).getKey()))).into((ImageView) trailerView.getChildAt(i));
                     trailerView.getChildAt(i).setTag(i);
-                    trailerView.getChildAt(i).setOnClickListener(onClickListener);
+                    trailerView.getChildAt(i).setOnClickListener(onVideoClickListener);
                 }
                 if (videos.size() < 2) {
                     trailerView.getChildAt(1).setVisibility(View.GONE);
@@ -265,7 +263,8 @@ public class MovieDetailsFragment extends Fragment {
 
             }else{
                 if(networkError) {
-                 Snackbar.make(viewParent, "Network Error", Snackbar.LENGTH_INDEFINITE).show();
+                 Snackbar.make(viewParent, getString(R.string.string_network_error), Snackbar.LENGTH_INDEFINITE)
+                         .show();
                 }
             }
         }
@@ -289,9 +288,9 @@ public class MovieDetailsFragment extends Fragment {
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();
 
-            MovieService movieService = retrofit.create(MovieService.class);
+            Service service = retrofit.create(Service.class);
 
-            Call<ResultsReview> call = movieService.getReviewsForMovie(mMovie.getId(), mContext.getString(R.string.api));
+            Call<ResultsReview> call = service.getReviewsForMovie(mMovie.getId(), mContext.getString(R.string.api));
 
             try {
                 Response<ResultsReview> response = call.execute();
@@ -343,7 +342,7 @@ public class MovieDetailsFragment extends Fragment {
                 }
             } else {
                 if(networkError) {
-                    ((TextView) reviewView.getChildAt(0)).setText(R.string.string_review_network_error);
+                    ((TextView) reviewView.getChildAt(0)).setText(R.string.string_network_error);
                 } else {
                     ((TextView) reviewView.getChildAt(0)).setText(R.string.string_no_reviews);
                 }

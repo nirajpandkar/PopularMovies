@@ -28,12 +28,13 @@ import android.widget.AdapterView;
 import android.widget.GridView;
 import android.widget.Toast;
 
+import com.xipherlabs.popularmovies.adapter.MovieAdapter;
 import com.xipherlabs.popularmovies.db.FavoritesProvider;
 import com.xipherlabs.popularmovies.db.MovieContract;
 import com.xipherlabs.popularmovies.db.MovieDbHelper;
 import com.xipherlabs.popularmovies.model.Movie;
 import com.xipherlabs.popularmovies.model.ResultsMovie;
-import com.xipherlabs.popularmovies.rest.MovieService;
+import com.xipherlabs.popularmovies.rest.Service;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -75,22 +76,17 @@ public class MovieFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         setHasOptionsMenu(true);
-        // Inflate the layout for this fragment
         mTwoPane = getArguments().getBoolean(ARG_TWO_PANE, false);
         View view = inflater.inflate(R.layout.fragment_movie, container, false);
         ButterKnife.bind(this,view);
         FetchDataTask dataTask = new FetchDataTask(getContext());
-        //dataTask.execute(FetchDataTask.SORT_BY_POPULARITY);
-
 
         NetworkInfo networkInfo = ((ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE)).getActiveNetworkInfo();
         if(networkInfo != null && networkInfo.isConnected()) {
             dataTask.execute(FetchDataTask.SORT_BY_POPULARITY);
         } else {
-            Toast.makeText(getContext(), R.string.string_review_network_error, Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), R.string.string_network_error, Toast.LENGTH_SHORT).show();
         }
-
-        //movieGrid = (GridView) view.findViewById(R.id.poster_grid);
         mAdapter = new MovieAdapter(getContext(), new ArrayList<Movie>());
         movieGrid.setAdapter(mAdapter);
         return view;
@@ -100,7 +96,6 @@ public class MovieFragment extends Fragment {
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public void gridItemClick(AdapterView<?> parent, View view, int position, long id) {
         if(mTwoPane) {
-            Toast.makeText(getContext(),"Two Panes m8",Toast.LENGTH_SHORT).show();
             MovieDetailsFragment detailFragment = MovieDetailsFragment.newInstance((Movie) parent.getItemAtPosition(position));
             getFragmentManager().beginTransaction().replace(R.id.detailfrag_container, detailFragment).addToBackStack(null).commit();
             return;
@@ -111,7 +106,7 @@ public class MovieFragment extends Fragment {
             View statusBar = getActivity().getWindow().getDecorView().findViewById(android.R.id.statusBarBackground);
             View navigationBar = getActivity().getWindow().getDecorView().findViewById(android.R.id.navigationBarBackground);
             View toolbar = getActivity().findViewById(R.id.toolbar);
-            List<Pair<View, String>> pairs = new ArrayList<Pair<View, String>>();
+            List<Pair<View, String>> pairs = new ArrayList<>();
             pairs.add(Pair.create(toolbar, "toolbar"));
             if(statusBar != null)
                 pairs.add(Pair.create(statusBar, Window.STATUS_BAR_BACKGROUND_TRANSITION_NAME));
@@ -148,7 +143,6 @@ public class MovieFragment extends Fragment {
                 return false;
         }
     }
-
     @Override
     public void onSaveInstanceState(Bundle outState) {
         outState.putInt("scrollPos", movieGrid.getFirstVisiblePosition());
@@ -201,8 +195,8 @@ public class MovieFragment extends Fragment {
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();
             try {
-                    MovieService movieService = retrofit.create(MovieService.class);
-                    Call<ResultsMovie> call = movieService.
+                    Service service = retrofit.create(Service.class);
+                    Call<ResultsMovie> call = service.
                             getPopularMovies(mContext.getString(R.string.api)
                                     , sortBy[0]
                                     , (sortBy[0].equals(SORT_BY_RATING) ? "1000" : "0"));
