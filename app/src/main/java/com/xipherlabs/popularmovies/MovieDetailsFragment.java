@@ -14,7 +14,6 @@ import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -30,10 +29,9 @@ import com.squareup.picasso.Picasso;
 import com.xipherlabs.popularmovies.db.FavoritesProvider;
 import com.xipherlabs.popularmovies.db.MovieContract;
 import com.xipherlabs.popularmovies.model.Movie;
-import com.xipherlabs.popularmovies.model.ResultsDiscover;
 import com.xipherlabs.popularmovies.model.ResultsVideo;
 import com.xipherlabs.popularmovies.model.Review;
-import com.xipherlabs.popularmovies.model.ReviewResults;
+import com.xipherlabs.popularmovies.model.ResultsReview;
 import com.xipherlabs.popularmovies.model.Video;
 import com.xipherlabs.popularmovies.rest.MovieService;
 
@@ -166,10 +164,6 @@ public class MovieDetailsFragment extends Fragment {
         super.onOptionsItemSelected(item);
         if(item.getItemId() == R.id.favorite) {
             item.setIcon(R.drawable.ic_favorite_black);
-            /*
-            MovieDbHelper dbHelper = new MovieDbHelper(getContext());
-            SQLiteDatabase db = dbHelper.getWritableDatabase();
-            */
             if(!favorite) {
                 ContentValues contentValues = new ContentValues();
                 contentValues.put(MovieContract.MovieEntry.COL_TMDB_ID, mMovie.getId());
@@ -180,21 +174,17 @@ public class MovieDetailsFragment extends Fragment {
                 contentValues.put(MovieContract.MovieEntry.COL_ORIGINAL_TITLE, mMovie.getOriginalTitle());
                 contentValues.put(MovieContract.MovieEntry.COL_BACKDROP_PATH, mMovie.getBackdropPath());
                 contentValues.put(MovieContract.MovieEntry.COL_VOTE_AVG, mMovie.getVoteAvg());
-
-                //long res = db.insert(MovieContract.MovieEntry.TABLE_NAME, null, contentValues);
-                Uri u = getContext().getContentResolver().insert(FavoritesProvider.Movies.CONTENT_URI, contentValues);
-
-                if(u != null)
-                    Log.d("Row inserted: ", u.toString());
+                Uri uri = getContext().getContentResolver()
+                        .insert(FavoritesProvider.Movies.CONTENT_URI, contentValues);
                 favorite = true;
             } else {
                 favorite = false;
                 item.setIcon(R.drawable.ic_favorite_border_black);
-                int n = getContext().getContentResolver().delete(FavoritesProvider.Movies.CONTENT_URI, MovieContract.MovieEntry.COL_TMDB_ID + "=?", new String[]{Long.toString(mMovie.getId())});
-                //int n = db.delete(MovieContract.MovieEntry.TABLE_NAME, MovieContract.MovieEntry.COL_TMDB_ID + "=?", new String[]{Long.toString(mMovie.getId())});
-                Log.d("Rows deleted: ", Integer.toString(n));
+                int n = getContext().getContentResolver()
+                        .delete(FavoritesProvider.Movies.CONTENT_URI
+                                , MovieContract.MovieEntry.COL_TMDB_ID + "=?"
+                                , new String[]{Long.toString(mMovie.getId())});
             }
-            //db.close();
             return true;
         }
         if (item.getItemId() == R.id.share) {
@@ -204,16 +194,17 @@ public class MovieDetailsFragment extends Fragment {
                 intent.setType("text/plain");
                 startActivity(Intent.createChooser(intent, getString(R.string.string_share_trailer)));
             } else {
-                Snackbar.make(viewParent, getContext().getString(R.string.string_trailer_not_loaded), Snackbar.LENGTH_SHORT).show();
+                Snackbar.make(viewParent
+                        , getContext().getString(R.string.string_trailer_not_loaded)
+                        , Snackbar.LENGTH_SHORT).show();
             }
         }
 
         return false;
     }
-
+    //TODO: Have a look at ReactiveX
     private class FetchVideoTask extends AsyncTask<Long, Void, List<Video>> {
-
-        // http://stackoverflow.com/a/8842839/2663152
+        //Reference: http://stackoverflow.com/a/8842839/2663152
         public static final String YT_THUMB_BASE = "http://img.youtube.com/vi/%s/0.jpg";
         public static final String YT_VIDEO_BASE = "http://www.youtube.com/watch?v=";
 
@@ -227,7 +218,7 @@ public class MovieDetailsFragment extends Fragment {
         protected List<Video> doInBackground(Long... params) {
 
             Retrofit retrofit = new Retrofit.Builder()
-                    .baseUrl(MovieFragment.FetchDataTask.BASE_URL2)
+                    .baseUrl(MovieFragment.FetchDataTask.BASE_URL)
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();
 
@@ -241,14 +232,12 @@ public class MovieDetailsFragment extends Fragment {
                 networkError = true;
                 e.printStackTrace();
             }
-
             return null;
         }
 
         @Override
         protected void onPostExecute(final List<Video> videos) {
             super.onPostExecute(videos);
-            //TODO:RE-EVAL THIS NEW CODE
             if (videos != null && videos.size() != 0) {
                 trailerUri = Uri.parse(YT_VIDEO_BASE + videos.get(0).getKey());
                 trailerSharePrepared = true;
@@ -296,16 +285,16 @@ public class MovieDetailsFragment extends Fragment {
         protected List<Review> doInBackground(Long... params) {
 
             Retrofit retrofit = new Retrofit.Builder()
-                    .baseUrl(MovieFragment.FetchDataTask.BASE_URL2)
+                    .baseUrl(MovieFragment.FetchDataTask.BASE_URL)
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();
 
             MovieService movieService = retrofit.create(MovieService.class);
 
-            Call<ReviewResults> call = movieService.getReviewsForMovie(mMovie.getId(), mContext.getString(R.string.api));
+            Call<ResultsReview> call = movieService.getReviewsForMovie(mMovie.getId(), mContext.getString(R.string.api));
 
             try {
-                Response<ReviewResults> response = call.execute();
+                Response<ResultsReview> response = call.execute();
                 return response.body().getResults();
             } catch (IOException e) {
                 networkError = true;

@@ -2,15 +2,15 @@ package com.xipherlabs.popularmovies.model;
 
 import java.util.List;
 
-public class ReviewResults {
+public class ResultsReview {
 
     int id;
     int page;
     List<Review> results;
 
-    public ReviewResults() {}
+    public ResultsReview() {}
 
-    public ReviewResults(int id, int page, List<Review> results) {
+    public ResultsReview(int id, int page, List<Review> results) {
         this.id = id;
         this.page = page;
         this.results = results;

@@ -2,7 +2,7 @@ package com.xipherlabs.popularmovies.model;
 import com.google.gson.annotations.SerializedName;
 import java.util.List;
 
-public class ResultsDiscover {
+public class ResultsMovie {
     @SerializedName("page")
     public String page;
 
